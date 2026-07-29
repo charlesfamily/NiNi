@@ -1,11 +1,12 @@
-“use client”
+"use client"
 
-import { useState } from "react"
-import { Bell, Clock, Repeat, MapPin, Trash2 } from "lucide-react"
-import { motion } from "framer-motion"
+import { useState, useEffect } from "react"
+import { Bell, Clock, Repeat, MapPin, Trash2, Heart, BookOpen, RefreshCw, Sparkles } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface RemindersViewProps {
   searchQuery: string
@@ -68,8 +69,149 @@ const SAMPLE_REMINDERS: Reminder[] = [
   },
 ]
 
+const AFFIRMATIONS = [
+  {
+    text: "I am capable of achieving great things today.",
+    author: "Nini Affirmation"
+  },
+  {
+    text: "Every day I grow stronger and more resilient.",
+    author: "Nini Inspiration"
+  },
+  {
+    text: "I choose to be confident and believe in myself.",
+    author: "Nini Reminder"
+  },
+  {
+    text: "My potential is limitless, and I embrace new challenges.",
+    author: "Nini Growth"
+  },
+  {
+    text: "I am worthy of love, success, and happiness.",
+    author: "Nini Energy"
+  },
+  {
+    text: "Today, I will focus on what I can control.",
+    author: "Nini Peace"
+  },
+  {
+    text: "I radiate positivity and attract good things into my life.",
+    author: "Nini Vibes"
+  },
+  {
+    text: "I am grateful for all that I have and all that is yet to come.",
+    author: "Nini Gratitude"
+  },
+  {
+    text: "I trust the journey, even when I don't understand it.",
+    author: "Nini Faith"
+  },
+  {
+    text: "My thoughts create my reality, and I choose positive ones.",
+    author: "Nini Mindfulness"
+  },
+]
+
+const BIBLE_VERSES = [
+  {
+    text: "I can do all things through Christ who strengthens me.",
+    reference: "Philippians 4:13"
+  },
+  {
+    text: "For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you, plans to give you hope and a future.",
+    reference: "Jeremiah 29:11"
+  },
+  {
+    text: "Be strong and courageous. Do not be afraid; do not be discouraged, for the Lord your God will be with you wherever you go.",
+    reference: "Joshua 1:9"
+  },
+  {
+    text: "The Lord is my strength and my shield; my heart trusts in him, and he helps me.",
+    reference: "Psalm 28:7"
+  },
+  {
+    text: "Trust in the Lord with all your heart and lean not on your own understanding.",
+    reference: "Proverbs 3:5"
+  },
+  {
+    text: "But those who hope in the Lord will renew their strength. They will soar on wings like eagles.",
+    reference: "Isaiah 40:31"
+  },
+  {
+    text: "This is the day that the Lord has made; let us rejoice and be glad in it.",
+    reference: "Psalm 118:24"
+  },
+  {
+    text: "The steadfast love of the Lord never ceases; his mercies never come to an end; they are new every morning.",
+    reference: "Lamentations 3:22-23"
+  },
+  {
+    text: "And we know that in all things God works for the good of those who love him.",
+    reference: "Romans 8:28"
+  },
+  {
+    text: "Have I not commanded you? Be strong and courageous. Do not be terrified; do not be discouraged, for the Lord your God will be with you wherever you go.",
+    reference: "Joshua 1:9"
+  },
+]
+
 export function RemindersView({ searchQuery }: RemindersViewProps) {
   const [reminders, setReminders] = useState<Reminder[]>(SAMPLE_REMINDERS)
+  const [activeTab, setActiveTab] = useState<"affirmations" | "bible">("affirmations")
+  const [currentItem, setCurrentItem] = useState(AFFIRMATIONS[0])
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [greeting, setGreeting] = useState("")
+
+  useEffect(() => {
+    const hour = new Date().getHours()
+    if (hour < 12) setGreeting("Good morning")
+    else if (hour < 17) setGreeting("Good afternoon")
+    else setGreeting("Good evening")
+  }, [])
+
+  const getRandomIndex = (max: number, currentIdx: number) => {
+    let newIndex = Math.floor(Math.random() * max)
+    while (newIndex === currentIdx && max > 1) {
+      newIndex = Math.floor(Math.random() * max)
+    }
+    return newIndex
+  }
+
+  const refreshContent = () => {
+    if (activeTab === "affirmations") {
+      const newIndex = getRandomIndex(AFFIRMATIONS.length, currentIndex)
+      setCurrentIndex(newIndex)
+      setCurrentItem(AFFIRMATIONS[newIndex])
+    } else {
+      const newIndex = getRandomIndex(BIBLE_VERSES.length, currentIndex)
+      setCurrentIndex(newIndex)
+      setCurrentItem(BIBLE_VERSES[newIndex])
+    }
+  }
+
+  const handleTabChange = (value: string) => {
+    const newTab = value as "affirmations" | "bible"
+    setActiveTab(newTab)
+    
+    if (newTab === "affirmations") {
+      const newIndex = Math.floor(Math.random() * AFFIRMATIONS.length)
+      setCurrentIndex(newIndex)
+      setCurrentItem(AFFIRMATIONS[newIndex])
+    } else {
+      const newIndex = Math.floor(Math.random() * BIBLE_VERSES.length)
+      setCurrentIndex(newIndex)
+      setCurrentItem(BIBLE_VERSES[newIndex])
+    }
+  }
+
+  // Auto-rotate content every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshContent()
+    }, 30000)
+    
+    return () => clearInterval(interval)
+  }, [activeTab, currentIndex])
 
   const filteredReminders = reminders.filter(reminder =>
     reminder.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -92,6 +234,104 @@ export function RemindersView({ searchQuery }: RemindersViewProps) {
 
   return (
     <div className="h-full p-4 md:p-6 space-y-6 overflow-auto">
+      {/* App Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center mb-2"
+      >
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <Sparkles className="h-6 w-6 text-purple-500" />
+          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
+            Nini
+          </h1>
+          <Sparkles className="h-6 w-6 text-purple-500" />
+        </div>
+        <p className="text-slate-500 dark:text-slate-400 text-sm">
+          {greeting}! Your daily dose of inspiration ✨
+        </p>
+      </motion.div>
+
+      {/* Daily Inspiration */}
+      <Card className="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white overflow-hidden relative">
+        <CardContent className="p-6 relative">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              {activeTab === "affirmations" ? (
+                <Heart className="h-5 w-5" />
+              ) : (
+                <BookOpen className="h-5 w-5" />
+              )}
+              <h3 className="font-semibold text-lg">
+                {activeTab === "affirmations" ? "Today's Nini" : "Today's Verse"}
+              </h3>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-white hover:bg-white/20"
+              onClick={refreshContent}
+            >
+              <RefreshCw className="h-4 w-4 mr-1" />
+              New
+            </Button>
+          </div>
+
+          <div className="mb-6">
+            <Tabs 
+              value={activeTab} 
+              onValueChange={handleTabChange}
+              className="w-full"
+            >
+              <TabsList className="bg-white/10 backdrop-blur-sm w-full">
+                <TabsTrigger 
+                  value="affirmations" 
+                  className="flex-1 data-[state=active]:bg-white/20 text-white"
+                >
+                  <Heart className="h-4 w-4 mr-2" />
+                  Affirmations
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="bible" 
+                  className="flex-1 data-[state=active]:bg-white/20 text-white"
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Bible Verses
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`${activeTab}-${currentIndex}`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="text-center"
+            >
+              <p className="text-xl md:text-2xl font-light leading-relaxed mb-4 italic">
+                "{currentItem.text}"
+              </p>
+              {'reference' in currentItem ? (
+                <p className="text-sm text-white/80 font-medium">
+                  — {currentItem.reference}
+                </p>
+              ) : (
+                <p className="text-sm text-white/80 font-medium">
+                  — {currentItem.author}
+                </p>
+              )}
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Decorative elements */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+        </CardContent>
+      </Card>
+
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <Card>
@@ -198,11 +438,12 @@ export function RemindersView({ searchQuery }: RemindersViewProps) {
       {/* Quick Actions */}
       <Card className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
         <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-2">Reminder Tips</h3>
+          <h3 className="text-lg font-semibold mb-2">Nini Tips</h3>
           <ul className="space-y-2 text-sm">
             <li>• Set recurring reminders for daily habits</li>
             <li>• Add locations to get notified when you arrive</li>
             <li>• Pause reminders when you don't need them</li>
+            <li>• Let Nini inspire you with daily affirmations and verses</li>
           </ul>
         </CardContent>
       </Card>
