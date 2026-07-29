@@ -1,0 +1,211 @@
+"use client"
+
+import { useState } from "react"
+import { Bell, Clock, Repeat, MapPin, Trash2 } from "lucide-react"
+import { motion } from "framer-motion"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+
+interface RemindersViewProps {
+  searchQuery: string
+}
+
+interface Reminder {
+  id: string
+  title: string
+  description?: string
+  time: string
+  recurring?: "daily" | "weekly" | "monthly"
+  location?: string
+  active: boolean
+  color: string
+}
+
+const SAMPLE_REMINDERS: Reminder[] = [
+  {
+    id: "1",
+    title: "Take medication",
+    description: "Morning vitamins and supplements",
+    time: "8:00 AM",
+    recurring: "daily",
+    active: true,
+    color: "bg-blue-500",
+  },
+  {
+    id: "2",
+    title: "Team sync",
+    time: "9:30 AM",
+    recurring: "daily",
+    location: "Conference Room",
+    active: true,
+    color: "bg-purple-500",
+  },
+  {
+    id: "3",
+    title: "Lunch break",
+    time: "12:30 PM",
+    recurring: "daily",
+    active: true,
+    color: "bg-green-500",
+  },
+  {
+    id: "4",
+    title: "Gym workout",
+    description: "Leg day - don't skip!",
+    time: "6:00 PM",
+    recurring: "weekly",
+    active: true,
+    color: "bg-orange-500",
+  },
+  {
+    id: "5",
+    title: "Call mom",
+    time: "7:00 PM",
+    recurring: "weekly",
+    active: false,
+    color: "bg-pink-500",
+  },
+]
+
+export function RemindersView({ searchQuery }: RemindersViewProps) {
+  const [reminders, setReminders] = useState<Reminder[]>(SAMPLE_REMINDERS)
+
+  const filteredReminders = reminders.filter(reminder =>
+    reminder.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    reminder.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    reminder.location?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const toggleReminder = (id: string) => {
+    setReminders(reminders.map(reminder =>
+      reminder.id === id ? { ...reminder, active: !reminder.active } : reminder
+    ))
+  }
+
+  const deleteReminder = (id: string) => {
+    setReminders(reminders.filter(reminder => reminder.id !== id))
+  }
+
+  const activeReminders = reminders.filter(r => r.active).length
+  const recurringReminders = reminders.filter(r => r.recurring).length
+
+  return (
+    <div className="h-full p-4 md:p-6 space-y-6 overflow-auto">
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{reminders.length}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-400">Total Reminders</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-green-600">{activeReminders}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-400">Active</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-purple-600">{recurringReminders}</div>
+            <div className="text-sm text-slate-600 dark:text-slate-400">Recurring</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Reminders List */}
+      <div>
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Your Reminders</h3>
+        <div className="space-y-3">
+          {filteredReminders.map((reminder, index) => (
+            <motion.div
+              key={reminder.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.05 }}
+            >
+              <Card className={`${!reminder.active ? "opacity-60" : ""}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className={`w-10 h-10 rounded-full ${reminder.color} flex items-center justify-center shrink-0`}>
+                      <Bell className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className={`font-semibold mb-1 text-slate-900 dark:text-slate-100 ${!reminder.active ? "line-through" : ""}`}>
+                        {reminder.title}
+                      </h4>
+                      {reminder.description && (
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{reminder.description}</p>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="outline" className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {reminder.time}
+                        </Badge>
+                        {reminder.recurring && (
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            <Repeat className="h-3 w-3" />
+                            <span className="capitalize">{reminder.recurring}</span>
+                          </Badge>
+                        )}
+                        {reminder.location && (
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {reminder.location}
+                          </Badge>
+                        )}
+                        <Badge className={reminder.active ? "bg-green-500 text-white" : "bg-slate-400 text-white"}>
+                          {reminder.active ? "Active" : "Paused"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => toggleReminder(reminder.id)}
+                        title={reminder.active ? "Pause reminder" : "Activate reminder"}
+                        aria-label={reminder.active ? "Pause reminder" : "Activate reminder"}
+                      >
+                        <Bell className={`h-4 w-4 ${reminder.active ? "text-green-600" : "text-slate-400"}`} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteReminder(reminder.id)}
+                        title="Delete reminder"
+                        aria-label="Delete reminder"
+                      >
+                        <Trash2 className="h-4 w-4 text-slate-400 hover:text-red-600" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+          {filteredReminders.length === 0 && (
+            <Card>
+              <CardContent className="p-8 text-center text-slate-500 dark:text-slate-400">
+                No reminders found
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <Card className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+        <CardContent className="p-6">
+          <h3 className="text-lg font-semibold mb-2">Reminder Tips</h3>
+          <ul className="space-y-2 text-sm">
+            <li>• Set recurring reminders for daily habits</li>
+            <li>• Add locations to get notified when you arrive</li>
+            <li>• Pause reminders when you don't need them</li>
+          </ul>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
