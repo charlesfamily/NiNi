@@ -9,8 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface RemindersViewProps {
-  searchQuery: string
-}
+export function RemindersView({ searchQuery }: RemindersViewProps) => {
 
 interface Reminder {
   id: string
