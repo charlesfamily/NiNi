@@ -1,4 +1,4 @@
-"use client"
+use client
 
 import { useState } from "react"
 import { Bell, Clock, Repeat, MapPin, Trash2 } from "lucide-react"
