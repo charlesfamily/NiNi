@@ -4,14 +4,13 @@
 # signing via the App Store Connect API key -> build number bump -> signed
 # .ipa -> upload to TestFlight / App Store Connect.
 #
-# Placeholders to replace (see BUILD-NOTES.md, "No-Mac route (Codemagic)"):
-#   * integrations.app_store_connect below must exactly match the name of
-#     the App Store Connect integration Charles creates in the Codemagic UI
-#     (Teams -> Integrations -> App Store Connect).
-#   * The APP_STORE_CONNECT_* values under environment.vars are PLACEHOLDERS.
-#     The real values belong in Codemagic's encrypted environment variables
-#     for this app (App settings -> Environment variables, marked "Secure")
-#     -- once they are set there, delete the placeholder lines here.
+# Placeholders resolved 2026-11-07:
+#   * integrations.app_store_connect below matches the "Nini Daily ASC"
+#     integration Charles created in the Codemagic UI.
+#   * The APP_STORE_CONNECT_* and CERTIFICATE_PRIVATE_KEY values live in
+#     Codemagic's encrypted environment variables, group "nini_secrets"
+#     (App settings -> Environment variables, marked Secret), imported
+#     into this workflow via environment.groups below.
 #     NEVER commit the real .p8 private key to git.
 
 workflows:
@@ -23,21 +22,14 @@ workflows:
       # Placeholder name -- must match the integration label in Codemagic.
       app_store_connect: Nini Daily ASC
     environment:
+      groups:
+        - nini_secrets # APP_STORE_CONNECT_* + CERTIFICATE_PRIVATE_KEY (Codemagic vault)
       node: 22 # Capacitor 8 CLI requires Node >= 22
       xcode: latest
       vars:
         BUNDLE_ID: "app.ninidaily"
         XCODE_PROJECT: "ios/App/App.xcodeproj" # Capacitor 8 uses SPM -> project, not workspace
         XCODE_SCHEME: "App"
-        # --- App Store Connect API key (placeholders -- see header) ---
-        APP_STORE_CONNECT_KEY_IDENTIFIER: "REPLACE_WITH_KEY_ID"
-        APP_STORE_CONNECT_ISSUER_ID: "REPLACE_WITH_ISSUER_ID"
-        APP_STORE_CONNECT_PRIVATE_KEY: "REPLACE_WITH_P8_PRIVATE_KEY_CONTENTS"
-        # Optional but recommended: a fixed private key for the signing
-        # certificate so Codemagic reuses one certificate across builds
-        # instead of creating a new one each time (Apple caps certificates).
-        # Generate once (openssl genrsa 2048), store in Codemagic as Secure.
-        CERTIFICATE_PRIVATE_KEY: "REPLACE_WITH_CERTIFICATE_PRIVATE_KEY"
     triggering:
       events:
         - push
