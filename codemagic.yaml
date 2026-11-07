@@ -45,7 +45,17 @@ workflows:
           npx cap sync ios
       - name: Set up automatic code signing (App Store Connect API key)
         script: |
+          set -e
           keychain initialize
+          # Fail fast if the stored CERTIFICATE_PRIVATE_KEY is not a valid
+          # RSA key. Builds #1/#2 silently skipped signing when it wasn't:
+          # fetch-signing-files died on argument parsing ("argument
+          # --certificate-key: Provided value in environment variable
+          # CERTIFICATE_PRIVATE_KEY ..."), and without set -e the step
+          # marched on with no certificate and no profile.
+          printf '%s' "$CERTIFICATE_PRIVATE_KEY" > /tmp/cert-key.pem
+          wc -c /tmp/cert-key.pem && head -1 /tmp/cert-key.pem
+          openssl rsa -in /tmp/cert-key.pem -check -noout
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --certificate-key @env:CERTIFICATE_PRIVATE_KEY \
