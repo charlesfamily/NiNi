@@ -193,3 +193,46 @@ when submitting for review). The YAML was validated with a parser.
 above (hosted API vs. on-device data) must be settled before the
 TestFlight test in step (e) means anything end-to-end — the notification
 layer itself works either way.
+
+## Build 4 — on-device data layer (2026-11-07)
+
+**Decision (Charles, 2026-11-06): option 2 — bundle the data into the
+app.** Build 3 (TestFlight 1.0 (3)) proved why: it installed and opened
+on Charles's iPad, but the affirmation stuck on "Loading…", the reminder
+list was empty, and a red banner showed "The string did not match the
+expected pattern." — the API-client `app.js` fetches `/v1/*`, and inside
+the Capacitor shell there is no server for that relative URL to reach.
+
+**Changes (all in `www/`, plus one iOS file):**
+- `www/app.js` — rewritten data layer. No fetch, no API key. Affirmations
+  come from the bundled library; "Today's Nini" is picked by day-of-year
+  (stable all day, changes daily); "Give me another" picks a different
+  random one. Reminders are stored in localStorage (`nini_reminders_v1`),
+  seeded on first run with the same five reminders the API shipped
+  (Take medication 08:00 daily, Team sync 09:30 daily, Lunch break 12:30
+  daily, Gym workout 18:00 weekly, Call mom 19:00 weekly paused).
+  Add / pause / resume / delete mutate the store and re-render; every
+  render still ends with `NiniNotify.syncReminders(rows)`, so OS
+  notifications reconcile exactly as designed. The retired
+  `chatnow_api_key` localStorage entry is removed on boot.
+- `www/affirmations.js` — NEW. Generated bundle of 65 affirmations: the
+  original 5 (`api/data/affirmations.json`) + the 60 from
+  `content/affirmation-pack-v1.json`. Regenerate from those sources;
+  do not hand-edit.
+- `www/index.html` — Settings/API-key block removed (no server, no key);
+  loads `affirmations.js` before `app.js`.
+- `ios/App/App/Info.plist` — added
+  `ITSAppUsesNonExemptEncryption = false` (added locally 2026-11-07,
+  first shipped in this build) so uploads skip Apple's export-compliance
+  question.
+
+**Verified on this VM:** `node --check` passes on all three JS files; a
+stubbed-DOM smoke test exercised first-run seeding, add, pause, delete,
+persistence round-trips, notification sync calls, and affirmation
+rotation — all passed.
+
+**Still to verify on device (the Build 4 test):** install from
+TestFlight, open the app (affirmation shows, 5 seed reminders listed),
+allow notifications, set a reminder ~3 minutes out, **close the app
+completely**, and confirm the notification fires on its own. Also check
+pause and delete cancel as expected.
