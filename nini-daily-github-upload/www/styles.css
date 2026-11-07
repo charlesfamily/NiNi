@@ -1,0 +1,142 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #14101d;
+  color: #f2eefb;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+header { text-align: center; margin-bottom: 20px; }
+header h1 { margin: 0; font-size: 28px; letter-spacing: 0.5px; }
+.tagline { margin: 4px 0 0; color: #a89cc9; font-size: 14px; }
+
+.error {
+  background: #3d1a24;
+  border: 1px solid #a03d55;
+  color: #ffb3c2;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.card {
+  background: linear-gradient(135deg, #2b2140, #1e1830);
+  border: 1px solid #3d3260;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.label {
+  margin: 0 0 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #b39df0;
+}
+
+.affirmation-text {
+  margin: 0 0 16px;
+  font-size: 22px;
+  line-height: 1.4;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+}
+
+button.ghost {
+  background: transparent;
+  border: 1px solid #6d5aa8;
+  color: #cdbcf5;
+}
+
+.reminders h2 { font-size: 18px; margin: 0 0 12px; }
+
+#reminder-list { list-style: none; margin: 0 0 16px; padding: 0; }
+
+#reminder-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #1e1830;
+  border: 1px solid #342a52;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+#reminder-list li.paused { opacity: 0.45; }
+
+#reminder-list .toggle {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 2px solid #6d5aa8;
+  background: transparent;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+#reminder-list li:not(.paused) .toggle { background: #8b5cf6; border-color: #8b5cf6; }
+
+#reminder-list .info { flex: 1; min-width: 0; }
+#reminder-list .title { display: block; font-size: 15px; }
+#reminder-list .meta { display: block; font-size: 12px; color: #a89cc9; }
+
+#reminder-list .delete {
+  background: transparent;
+  color: #a89cc9;
+  font-size: 18px;
+  padding: 4px 8px;
+}
+
+#add-reminder {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#add-reminder input[type="text"] { flex: 1 1 100%; }
+#add-reminder input[type="time"] { flex: 1; }
+#add-reminder select { flex: 1; }
+
+input, select {
+  font: inherit;
+  background: #1e1830;
+  border: 1px solid #3d3260;
+  color: #f2eefb;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+#add-reminder button {
+  background: #8b5cf6;
+  color: #fff;
+  flex: 1 1 100%;
+}
+
+.settings {
+  margin-top: 24px;
+  font-size: 14px;
+  color: #a89cc9;
+}
+
+.settings summary { cursor: pointer; margin-bottom: 10px; }
+.settings label { display: block; margin-bottom: 8px; }
+.settings input { width: 100%; margin-top: 4px; }
+.settings button { background: #3d3260; color: #f2eefb; margin-top: 4px; }
+.status { font-size: 13px; min-height: 18px; }
+.status.ok { color: #7ee2a8; }
+.status.bad { color: #ffb3c2; }

@@ -1,0 +1,80 @@
+# Codemagic CI/CD — Nini Daily iOS build on a cloud Mac (no local Mac needed).
+#
+# Pipeline: macOS VM -> npm install -> Capacitor sync -> automatic code
+# signing via the App Store Connect API key -> build number bump -> signed
+# .ipa -> upload to TestFlight / App Store Connect.
+#
+# Placeholders to replace (see BUILD-NOTES.md, "No-Mac route (Codemagic)"):
+#   * integrations.app_store_connect below must exactly match the name of
+#     the App Store Connect integration Charles creates in the Codemagic UI
+#     (Teams -> Integrations -> App Store Connect).
+#   * The APP_STORE_CONNECT_* values under environment.vars are PLACEHOLDERS.
+#     The real values belong in Codemagic's encrypted environment variables
+#     for this app (App settings -> Environment variables, marked "Secure")
+#     -- once they are set there, delete the placeholder lines here.
+#     NEVER commit the real .p8 private key to git.
+
+workflows:
+  ios-release:
+    name: iOS Release (TestFlight)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      # Placeholder name -- must match the integration label in Codemagic.
+      app_store_connect: Nini Daily ASC
+    environment:
+      node: 22 # Capacitor 8 CLI requires Node >= 22
+      xcode: latest
+      vars:
+        BUNDLE_ID: "app.ninidaily"
+        XCODE_PROJECT: "ios/App/App.xcodeproj" # Capacitor 8 uses SPM -> project, not workspace
+        XCODE_SCHEME: "App"
+        # --- App Store Connect API key (placeholders -- see header) ---
+        APP_STORE_CONNECT_KEY_IDENTIFIER: "REPLACE_WITH_KEY_ID"
+        APP_STORE_CONNECT_ISSUER_ID: "REPLACE_WITH_ISSUER_ID"
+        APP_STORE_CONNECT_PRIVATE_KEY: "REPLACE_WITH_P8_PRIVATE_KEY_CONTENTS"
+        # Optional but recommended: a fixed private key for the signing
+        # certificate so Codemagic reuses one certificate across builds
+        # instead of creating a new one each time (Apple caps certificates).
+        # Generate once (openssl genrsa 2048), store in Codemagic as Secure.
+        CERTIFICATE_PRIVATE_KEY: "REPLACE_WITH_CERTIFICATE_PRIVATE_KEY"
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm install
+      - name: Sync web app into the iOS project
+        script: |
+          npx cap sync ios
+      - name: Set up automatic code signing (App Store Connect API key)
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --certificate-key @env:CERTIFICATE_PRIVATE_KEY \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
+      - name: Increment build number
+        script: |
+          cd ios/App
+          agvtool new-version -all "$BUILD_NUMBER"
+      - name: Build signed .ipa
+        script: |
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true # first stop: TestFlight on Charles's iPhone
+        submit_to_app_store: false # flip to true when ready for App Store review
