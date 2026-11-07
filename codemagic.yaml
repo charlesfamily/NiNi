@@ -51,7 +51,11 @@ workflows:
             --certificate-key @env:CERTIFICATE_PRIVATE_KEY \
             --create
           keychain add-certificates
-          xcode-project use-profiles
+          # use-profiles MUST run from inside ios/App with an explicit
+          # --project: run from the repo root it silently patches nothing,
+          # and the archive then fails with '"App" requires a provisioning
+          # profile' (build #1, 2026-11-07).
+          cd ios/App && xcode-project use-profiles --project App.xcodeproj
       - name: Increment build number
         script: |
           cd ios/App
