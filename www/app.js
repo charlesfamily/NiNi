@@ -1,16 +1,20 @@
-// Nini Daily frontend. Talks to the API on the same origin (/v1/*).
-// Your API key is stored only in this browser's localStorage.
+// Nini Daily frontend — ON-DEVICE data layer (native build).
+//
+// v1 ships with no server: affirmations are bundled in affirmations.js
+// (window.NINI_AFFIRMATIONS) and reminders live in this device's
+// localStorage. Nothing leaves the phone, which matches the App Store
+// privacy declaration ("Data Not Collected").
+//
+// app.js still calls window.NiniNotify.syncReminders(rows) after every
+// reminder change, so OS-level notifications stay reconciled exactly as
+// before (see native-notify.js).
 
-const KEY_NAME = 'chatnow_api_key';
+const REMINDERS_KEY = 'nini_reminders_v1';
 
 const $ = (id) => document.getElementById(id);
 const affirmationText = $('affirmation-text');
 const reminderList = $('reminder-list');
 const errorBox = $('error');
-
-function getKey() {
-  return localStorage.getItem(KEY_NAME) || '';
-}
 
 function showError(msg) {
   errorBox.textContent = msg;
@@ -21,67 +25,91 @@ function clearError() {
   errorBox.hidden = true;
 }
 
-async function api(path, options = {}) {
-  const res = await fetch('/v1' + path, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': getKey(),
-      ...(options.headers || {}),
-    },
-  });
-  if (res.status === 401) throw new Error('Wrong or missing API key — open Settings below and save your key.');
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Request failed (${res.status})`);
-  }
-  return res.json();
+// ---------------------------------------------------------------------------
+// Affirmations (bundled)
+// ---------------------------------------------------------------------------
+
+const AFFIRMATIONS = Array.isArray(window.NINI_AFFIRMATIONS)
+  ? window.NINI_AFFIRMATIONS
+  : [];
+
+function todaysAffirmation() {
+  if (!AFFIRMATIONS.length) return null;
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((now - start) / 86400000);
+  return AFFIRMATIONS[dayOfYear % AFFIRMATIONS.length];
 }
 
-async function loadAffirmation() {
-  try {
-    clearError();
-    const a = await api('/affirmations/today');
+function loadAffirmation() {
+  const a = todaysAffirmation();
+  if (a) {
     affirmationText.textContent = a.text;
     affirmationText.dataset.id = a.id;
-  } catch (e) {
-    showError(e.message);
   }
 }
 
-async function anotherAffirmation() {
+function anotherAffirmation() {
+  if (!AFFIRMATIONS.length) return;
+  const others = AFFIRMATIONS.filter((a) => a.id !== affirmationText.dataset.id);
+  const pool = others.length ? others : AFFIRMATIONS;
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  if (pick) {
+    affirmationText.textContent = pick.text;
+    affirmationText.dataset.id = pick.id;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Reminders (localStorage)
+// ---------------------------------------------------------------------------
+
+// First-run seed: the same five reminders the API version shipped with.
+const SEED_REMINDERS = [
+  { id: 'c1662597-b125-4ff1-9d08-e1154e64ebd2', title: 'Take medication', time: '08:00', repeat: 'daily', enabled: true, createdAt: '2026-09-22T21:59:33.523Z' },
+  { id: '7e5324a1-85ad-4370-a587-c38e57408b99', title: 'Team sync', time: '09:30', repeat: 'daily', enabled: true, createdAt: '2026-09-22T21:59:33.523Z' },
+  { id: '6a7cda25-3ee6-4c9f-ad0c-329b20a7f901', title: 'Lunch break', time: '12:30', repeat: 'daily', enabled: true, createdAt: '2026-09-22T21:59:33.523Z' },
+  { id: '2c4f84d5-eafe-4ca4-b662-be183c9bedcc', title: 'Gym workout', time: '18:00', repeat: 'weekly', enabled: true, createdAt: '2026-09-22T21:59:33.523Z' },
+  { id: '8313448e-0387-4dc3-a8f9-3edc17e72305', title: 'Call mom', time: '19:00', repeat: 'weekly', enabled: false, createdAt: '2026-09-22T21:59:33.523Z' },
+];
+
+function loadStore() {
   try {
-    clearError();
-    const all = await api('/affirmations');
-    const others = all.filter((a) => a.id !== affirmationText.dataset.id);
-    const pick = (others.length ? others : all)[Math.floor(Math.random() * (others.length ? others.length : all.length))];
-    if (pick) {
-      affirmationText.textContent = pick.text;
-      affirmationText.dataset.id = pick.id;
+    const raw = localStorage.getItem(REMINDERS_KEY);
+    if (raw) {
+      const rows = JSON.parse(raw);
+      if (Array.isArray(rows)) return rows;
     }
-  } catch (e) {
-    showError(e.message);
-  }
+  } catch (e) { /* fall through to seed */ }
+  const seed = SEED_REMINDERS.map((r) => ({ ...r }));
+  saveStore(seed);
+  return seed;
 }
 
-function reminderItem(r) {
+function saveStore(rows) {
+  try {
+    localStorage.setItem(REMINDERS_KEY, JSON.stringify(rows));
+  } catch (e) { /* storage unavailable; list still renders this run */ }
+}
+
+function newId() {
+  if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+    return window.crypto.randomUUID();
+  }
+  return 'r-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1e9).toString(36);
+}
+
+function reminderItem(r, rows) {
   const li = document.createElement('li');
   if (!r.enabled) li.classList.add('paused');
 
   const toggle = document.createElement('button');
   toggle.className = 'toggle';
   toggle.title = r.enabled ? 'Pause' : 'Resume';
-  toggle.addEventListener('click', async () => {
-    try {
-      clearError();
-      await api(`/reminders/${r.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ enabled: !r.enabled }),
-      });
-      loadReminders();
-    } catch (e) {
-      showError(e.message);
-    }
+  toggle.addEventListener('click', () => {
+    r.enabled = !r.enabled;
+    saveStore(rows);
+    renderReminders(rows);
   });
 
   const info = document.createElement('div');
@@ -98,49 +126,51 @@ function reminderItem(r) {
   del.className = 'delete';
   del.textContent = '×';
   del.title = 'Delete';
-  del.addEventListener('click', async () => {
-    try {
-      clearError();
-      await api(`/reminders/${r.id}`, { method: 'DELETE' });
-      loadReminders();
-    } catch (e) {
-      showError(e.message);
-    }
+  del.addEventListener('click', () => {
+    const i = rows.indexOf(r);
+    if (i >= 0) rows.splice(i, 1);
+    saveStore(rows);
+    renderReminders(rows);
   });
 
   li.append(toggle, info, del);
   return li;
 }
 
-async function loadReminders() {
+function renderReminders(rows) {
+  reminderList.innerHTML = '';
+  rows.forEach((r) => reminderList.appendChild(reminderItem(r, rows)));
+  // Native only: reconcile OS-level notifications with this list
+  // (no-op on plain web). Covers add / pause / resume / delete, which
+  // all funnel through renderReminders().
+  if (window.NiniNotify) window.NiniNotify.syncReminders(rows);
+}
+
+function loadReminders() {
   try {
     clearError();
-    const rows = await api('/reminders');
-    reminderList.innerHTML = '';
-    rows.forEach((r) => reminderList.appendChild(reminderItem(r)));
-    // Native only: reconcile OS-level notifications with this list
-    // (no-op on plain web). Covers add / edit / pause / delete, which
-    // all funnel through loadReminders().
-    if (window.NiniNotify) window.NiniNotify.syncReminders(rows);
+    renderReminders(loadStore());
   } catch (e) {
     showError(e.message);
   }
 }
 
-$('add-reminder').addEventListener('submit', async (e) => {
+$('add-reminder').addEventListener('submit', (e) => {
   e.preventDefault();
   try {
     clearError();
-    await api('/reminders', {
-      method: 'POST',
-      body: JSON.stringify({
-        title: $('r-title').value,
-        time: $('r-time').value,
-        repeat: $('r-repeat').value,
-      }),
+    const rows = loadStore();
+    rows.push({
+      id: newId(),
+      title: $('r-title').value.trim(),
+      time: $('r-time').value || '09:00',
+      repeat: $('r-repeat').value,
+      enabled: true,
+      createdAt: new Date().toISOString(),
     });
+    saveStore(rows);
     $('r-title').value = '';
-    loadReminders();
+    renderReminders(rows);
   } catch (err) {
     showError(err.message);
   }
@@ -148,24 +178,8 @@ $('add-reminder').addEventListener('submit', async (e) => {
 
 $('new-affirmation').addEventListener('click', anotherAffirmation);
 
-$('save-key').addEventListener('click', async () => {
-  const key = $('api-key').value.trim();
-  localStorage.setItem(KEY_NAME, key);
-  const status = $('status');
-  try {
-    await api('/affirmations');
-    status.textContent = 'Key works — you are connected.';
-    status.className = 'status ok';
-    loadAffirmation();
-    loadReminders();
-  } catch (e) {
-    status.textContent = 'That key did not work: ' + e.message;
-    status.className = 'status bad';
-  }
-});
-
-// Prefill the key field if one was saved before.
-$('api-key').value = getKey();
+// Drop the retired API key from the server-based version, if present.
+try { localStorage.removeItem('chatnow_api_key'); } catch (e) { /* ignore */ }
 
 loadAffirmation();
 loadReminders();
