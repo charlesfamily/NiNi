@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Nini Daily</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Nini Daily</h1>
+    <p class="tagline">Your daily Nini</p>
+  </header>
+
+  <p id="error" class="error" hidden></p>
+
+  <section class="card affirmation">
+    <p class="label">Today's Nini</p>
+    <p id="affirmation-text" class="affirmation-text">Loading…</p>
+    <button id="new-affirmation" class="ghost">Give me another</button>
+  </section>
+
+  <section class="reminders">
+    <h2>Reminders</h2>
+    <ul id="reminder-list"></ul>
+    <form id="add-reminder">
+      <input id="r-title" type="text" placeholder="New reminder" required maxlength="80">
+      <input id="r-time" type="time" value="09:00" required>
+      <select id="r-repeat">
+        <option value="once">Once</option>
+        <option value="daily" selected>Daily</option>
+        <option value="weekly">Weekly</option>
+      </select>
+      <button type="submit">Add</button>
+    </form>
+  </section>
+
+</div>
+<script src="native-notify.js"></script>
+<script src="affirmations.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
