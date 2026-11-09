@@ -99,9 +99,42 @@ function newId() {
   return 'r-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1e9).toString(36);
 }
 
+// ---------------------------------------------------------------------------
+// Editing an existing reminder
+// ---------------------------------------------------------------------------
+
+// Which reminder the form is editing, or null when it is in "Add" mode.
+// Tapping a row's Edit button loads that reminder into the form below;
+// saving then updates it in place (same id, same on/off state) instead of
+// adding a second reminder. Added Nov 9, 2026.
+let editingId = null;
+
+function startEdit(r, rows) {
+  editingId = r.id;
+  $('r-title').value = r.title;
+  $('r-time').value = r.time;
+  $('r-repeat').value = r.repeat;
+  $('r-submit').textContent = 'Save changes';
+  $('r-cancel').hidden = false;
+  $('add-reminder').classList.add('editing');
+  renderReminders(rows); // refresh so the row being edited is highlighted
+  $('r-title').focus();
+}
+
+function resetEdit() {
+  editingId = null;
+  $('r-title').value = '';
+  $('r-time').value = '09:00';
+  $('r-repeat').value = 'daily';
+  $('r-submit').textContent = 'Add';
+  $('r-cancel').hidden = true;
+  $('add-reminder').classList.remove('editing');
+}
+
 function reminderItem(r, rows) {
   const li = document.createElement('li');
   if (!r.enabled) li.classList.add('paused');
+  if (r.id === editingId) li.classList.add('editing');
 
   const toggle = document.createElement('button');
   toggle.className = 'toggle';
@@ -122,6 +155,12 @@ function reminderItem(r, rows) {
   meta.textContent = `${r.time} · ${r.repeat}${r.enabled ? '' : ' · paused'}`;
   info.append(title, meta);
 
+  const edit = document.createElement('button');
+  edit.className = 'edit';
+  edit.textContent = '✎';
+  edit.title = 'Edit';
+  edit.addEventListener('click', () => startEdit(r, rows));
+
   const del = document.createElement('button');
   del.className = 'delete';
   del.textContent = '×';
@@ -130,10 +169,11 @@ function reminderItem(r, rows) {
     const i = rows.indexOf(r);
     if (i >= 0) rows.splice(i, 1);
     saveStore(rows);
+    if (r.id === editingId) resetEdit();
     renderReminders(rows);
   });
 
-  li.append(toggle, info, del);
+  li.append(toggle, info, edit, del);
   return li;
 }
 
@@ -141,8 +181,8 @@ function renderReminders(rows) {
   reminderList.innerHTML = '';
   rows.forEach((r) => reminderList.appendChild(reminderItem(r, rows)));
   // Native only: reconcile OS-level notifications with this list
-  // (no-op on plain web). Covers add / pause / resume / delete, which
-  // all funnel through renderReminders().
+  // (no-op on plain web). Covers add / edit / pause / resume / delete,
+  // which all funnel through renderReminders().
   if (window.NiniNotify) window.NiniNotify.syncReminders(rows);
 }
 
@@ -160,20 +200,35 @@ $('add-reminder').addEventListener('submit', (e) => {
   try {
     clearError();
     const rows = loadStore();
-    rows.push({
-      id: newId(),
-      title: $('r-title').value.trim(),
-      time: $('r-time').value || '09:00',
-      repeat: $('r-repeat').value,
-      enabled: true,
-      createdAt: new Date().toISOString(),
-    });
+    if (editingId) {
+      // Edit mode: update the existing reminder in place.
+      const r = rows.find((row) => row.id === editingId);
+      if (r) {
+        r.title = $('r-title').value.trim() || r.title;
+        r.time = $('r-time').value || r.time;
+        r.repeat = $('r-repeat').value;
+      }
+    } else {
+      rows.push({
+        id: newId(),
+        title: $('r-title').value.trim(),
+        time: $('r-time').value || '09:00',
+        repeat: $('r-repeat').value,
+        enabled: true,
+        createdAt: new Date().toISOString(),
+      });
+    }
     saveStore(rows);
-    $('r-title').value = '';
+    resetEdit();
     renderReminders(rows);
   } catch (err) {
     showError(err.message);
   }
+});
+
+$('r-cancel').addEventListener('click', () => {
+  resetEdit();
+  renderReminders(loadStore());
 });
 
 $('new-affirmation').addEventListener('click', anotherAffirmation);
