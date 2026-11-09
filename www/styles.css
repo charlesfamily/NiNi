@@ -102,6 +102,15 @@ button.ghost {
   padding: 4px 8px;
 }
 
+#reminder-list .edit {
+  background: transparent;
+  color: #a89cc9;
+  font-size: 15px;
+  padding: 4px 8px;
+}
+
+#reminder-list li.editing { border-color: #8b5cf6; }
+
 #add-reminder {
   display: flex;
   gap: 8px;
@@ -126,6 +135,10 @@ input, select {
   color: #fff;
   flex: 1 1 100%;
 }
+
+/* While editing a reminder, Save and Cancel sit side by side. */
+#add-reminder.editing #r-submit { flex: 1; }
+#add-reminder #r-cancel { flex: 1; }
 
 .settings {
   margin-top: 24px;
