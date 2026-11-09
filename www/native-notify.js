@@ -102,6 +102,11 @@
       id: notifId(r.id),
       title: 'Nini Daily reminder',
       body: r.title,
+      // iOS delivers a local notification SILENTLY when no sound is set
+      // (Capacitor LocalNotifications docs). 'default' asks iOS for the
+      // system alert sound. Added Nov 9, 2026 — before this, reminders
+      // arrived as banners with no alarm.
+      sound: 'default',
       schedule: schedule,
     };
   }
