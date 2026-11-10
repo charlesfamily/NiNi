@@ -43,6 +43,15 @@ workflows:
       - name: Sync web app into the iOS project
         script: |
           npx cap sync ios
+      - name: Generate the bundled notification chime
+        script: |
+          # iOS plays custom notification sounds only from files inside the
+          # app bundle. The WAV is binary, so it cannot be committed through
+          # the GitHub connector; it is generated here from the committed
+          # script and picked up by the Xcode Resources phase (the project
+          # file references ios/App/App/nini-chime.wav).
+          python3 scripts/make_chime.py ios/App/App/nini-chime.wav
+          ls -la ios/App/App/nini-chime.wav
       - name: Set up automatic code signing (App Store Connect API key)
         script: |
           set -e
