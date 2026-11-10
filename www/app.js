@@ -11,6 +11,63 @@
 
 const REMINDERS_KEY = 'nini_reminders_v1';
 
+// ---------------------------------------------------------------------------
+// Completions (Build 7): the Done button records that today's firing of a
+// reminder was handled. native-notify.js reads the same log to cancel the
+// follow-up nudges for that occurrence; it also writes here when Done is
+// tapped on the notification itself.
+// ---------------------------------------------------------------------------
+
+const COMPLETIONS_KEY = 'nini_completions_v1';
+
+function localDateKey(d) {
+  const m = String(d.getMonth() + 1);
+  const day = String(d.getDate());
+  return d.getFullYear() + '-' + (m.length < 2 ? '0' + m : m) + '-' + (day.length < 2 ? '0' + day : day);
+}
+
+function loadCompletions() {
+  try {
+    const rows = JSON.parse(localStorage.getItem(COMPLETIONS_KEY) || '[]');
+    if (!Array.isArray(rows)) return [];
+    const cutoff = Date.now() - 30 * 86400000;
+    return rows.filter((c) => {
+      const t = Date.parse(c && c.date ? c.date + 'T12:00:00' : '');
+      return !isNaN(t) && t >= cutoff;
+    });
+  } catch (e) {
+    return [];
+  }
+}
+
+// The occurrence the Done button acts on: today's firing of this reminder.
+// Weekly reminders only fire on their weekday (creation weekday, matching
+// native-notify.js), so on other days there is nothing to mark done.
+function completionDateFor(r) {
+  const now = new Date();
+  if (r.repeat === 'weekly') {
+    const wd = r.createdAt ? new Date(r.createdAt).getDay() : now.getDay();
+    if (now.getDay() !== wd) return null;
+  }
+  return localDateKey(now);
+}
+
+function isDoneToday(r) {
+  const dk = completionDateFor(r);
+  return !!dk && loadCompletions().some((c) => c.id === r.id && c.date === dk);
+}
+
+function markDone(r) {
+  const dk = completionDateFor(r) || localDateKey(new Date());
+  const rows = loadCompletions();
+  if (!rows.some((c) => c.id === r.id && c.date === dk)) {
+    rows.push({ id: r.id, date: dk });
+    try { localStorage.setItem(COMPLETIONS_KEY, JSON.stringify(rows)); } catch (e) { /* ignore */ }
+  }
+  // A completed one-time reminder retires instead of firing again.
+  if (r.repeat !== 'daily' && r.repeat !== 'weekly') r.enabled = false;
+}
+
 const $ = (id) => document.getElementById(id);
 const affirmationText = $('affirmation-text');
 const reminderList = $('reminder-list');
@@ -150,10 +207,23 @@ function reminderItem(r, rows) {
   const title = document.createElement('span');
   title.className = 'title';
   title.textContent = r.title;
+  const doneToday = isDoneToday(r);
+  if (doneToday) li.classList.add('done-today');
   const meta = document.createElement('span');
   meta.className = 'meta';
-  meta.textContent = `${r.time} · ${r.repeat}${r.enabled ? '' : ' · paused'}`;
+  meta.textContent = `${r.time} · ${r.repeat}${r.enabled ? '' : ' · paused'}${doneToday ? ' · done \u2713' : ''}`;
   info.append(title, meta);
+
+  const doneBtn = document.createElement('button');
+  doneBtn.className = 'done-btn';
+  doneBtn.textContent = '\u2713';
+  doneBtn.title = doneToday ? 'Done today' : 'Mark done';
+  if (!completionDateFor(r)) doneBtn.hidden = true; // weekly: not a firing day
+  doneBtn.addEventListener('click', () => {
+    markDone(r);
+    saveStore(rows);
+    renderReminders(rows);
+  });
 
   const edit = document.createElement('button');
   edit.className = 'edit';
@@ -173,7 +243,7 @@ function reminderItem(r, rows) {
     renderReminders(rows);
   });
 
-  li.append(toggle, info, edit, del);
+  li.append(toggle, info, doneBtn, edit, del);
   return li;
 }
 
@@ -235,6 +305,10 @@ $('new-affirmation').addEventListener('click', anotherAffirmation);
 
 // Drop the retired API key from the server-based version, if present.
 try { localStorage.removeItem('chatnow_api_key'); } catch (e) { /* ignore */ }
+
+// native-notify.js calls this after a notification Done retires a
+// one-time reminder, so the visible list stays in step.
+window.NiniReloadReminders = loadReminders;
 
 loadAffirmation();
 loadReminders();

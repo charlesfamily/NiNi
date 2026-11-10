@@ -153,3 +153,15 @@ input, select {
 .status { font-size: 13px; min-height: 18px; }
 .status.ok { color: #7ee2a8; }
 .status.bad { color: #ffb3c2; }
+
+/* Build 7: Done button + done-today state */
+#reminder-list .done-btn {
+  background: transparent;
+  color: #7fd6a4;
+  font-size: 16px;
+  padding: 4px 8px;
+}
+
+#reminder-list li.done-today { border-color: #2f7d4f; }
+#reminder-list li.done-today .meta { color: #7fd6a4; }
+#reminder-list li.done-today .done-btn { opacity: 0.45; }
